@@ -1,0 +1,127 @@
+---
+title: "Problem Set 3"
+author:
+  - Your Name Here
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    toc-title: Contents
+---
+
+```{r}
+#| echo: false
+#| message: false
+
+library(tidyverse)
+library(furrr)
+library(purrr)
+library(nlme)
+library(lmtest)
+library(parallel)
+library(parallelly)
+library(cowplot)
+theme_set(theme_cowplot())
+set.seed(7447023)
+
+# Required files for this problem set:
+#   - NeandertalBrainSize.csv
+#   - prairie.csv
+
+```
+
+
+## Neandertal Brains
+
+In problem set 10 in QMLS1, you used a dataset on modern humans and Neanderthals to ask about differences in brain size when adjusted for body size.^[Ruff, C.B., E. Trinkaus, and T.W. Holliday. 1997. Body mass and encephalization in Pleistocene *Homo*. *Nature* 387: 173-176.]
+  
+The file `NeandertalBrainSize.csv` contains data on estimated log body mass, log brain size, and `Species`. Load the file, and convert `Species` to a factor.
+
+```{r}
+
+```
+
+One of the models we fit was: Brain size modeled by body mass and species (additive model only without the mass X species interaction). Fit this model and perform a randomization test for each of your predictors performing 10,000 iterations. 
+
+```{r}
+
+```
+
+
+## Chi-Squared Test
+
+The Chi-squared test is known to have biases when there are relatively few observations for one or more categories. Look at the help for `chisq.test` and specifically read about the `simulate.p.value` option. Using the `simulate.p.value` option to use a Monte Carlo simulation is recommended when sample size is low.
+
+Let's explore this for two back-cross experiments designed to ask whether a trait is determined by a single gene with dominance. Garland et al. (2008) found that a "mini-muscle" phenotype was present in two lines in an experiment selecting for high wheel running in mice. They then performed a back-cross design (cross mini-muscle mice to wild-type and then cross the offspring to mini-muscle mice again). If the mini muscle phenotype is determined by a single gene and that gene is recessive, you expect a 1:1 ratio in the offspring of the backcross. [Hannon et. al (2008)](https://academic.oup.com/jhered/article/99/4/349/2187936) found 201 offspring with the mini muscle phenotype and 203 without. Feel free to work out the Punnett squares for yourself.
+
+Perform a chi-squared test with and without `simulate.p.value = TRUE`.
+
+```{r}
+
+```
+
+There is not a way to randomize these counts by shuffling, because, if you simply shuffle the genotypes, you will end up with the same counts (the Chi-squared test uses aggregated counts only). Instead, the Monte Carlo simulation used here produces a null expectation based on the total sample size and the null hypothesis. Here, the test is for a 1:1 ratio or equal proportions. Simulate a set of two counts with a 1:1 expectation. Then repeat this 2,000 times and calculate a *P*-value based on this simulation. 
+
+```{r}
+
+```
+
+Compare your results to the output of the `chisq.test()` function with simulation you used above.
+
+>
+
+Now consider another similar back-cross experiment looking at a different phenotype, a white head fur blaze, with a much smaller sample size. Here, 12 individuals had the white blaze and 9 did not. Repeat all the steps above for this example.  
+
+
+```{r}
+
+
+```
+
+Consider how the "null hypothesis" is being used statistically here. How well do you think this test supports a conclusion of a 1:1 ratio in the second example and how certain should you be about that conclusion? Do you have any ideas for a different simulation that might be more appropriate for making a conclusion about the inheritance mechanism of the white blaze?
+
+> 
+
+
+## Restoration Treatments in Prairies in a Block Design
+
+Block designs are used often to help isolate the effects of treatments. Consider a block design where there are three plots within each block in space in a prairie restoration. These three plots are a control (unmanipulated), burned annually in fall, and mowed every spring. Within these blocks, there are several quadrants where species richness was measured. Load in the prairie.csv file and examine the structure of the data, plotting, etc.
+
+```{r}
+
+```
+
+Fit a multilevel model using `lme()` with Block as a random effect. To assess the significance of the treatment effect overall, fit the model with `method = "ML"` to use maximum likelihood. Then fit a model without treatment and use `lrtest()` in the `lmtest` package to perform a likelihood ratio test comparing the models with and without treatment. Unit 10 in QMLS 1 covered likelihood ratio tests, and PS 10 has examples.
+
+```{r}
+
+```
+
+Here, observations are not exchangeable between experimental units. Thus, we need to randomize treatment within each block. Perform a small set of just 100 shuffles within blocks and perform the same likelihood ratio test using the chi-squared statistic as your statistic of interest. Estimate the time it takes to run this set. Then calculate how long it would take to run 10,000 permutations.
+
+```{r}
+
+```
+
+This would take a bit of time (estimated at about 200 seconds on this machine) so let's use the `future_map_dbl()` approach. Convert your code into a function that will accept an iteration number and the data and will return your test statistic. Test the function a couple times to ensure you get the expected result.   
+
+```{r}
+
+```
+
+Figure out how many cores your local computer has using `availableCores()` and use `plan()` to set up a multisession. Make sure to omit 1 core for the OS to keep running. Then use `future_map_dbl` with your function to perform 10,000 permutations. Feel free to time this chunk of code to see what the realized speed increase is.
+
+```{r}
+
+```
+
+Make a histogram of your chi-squared test statistic and add a line for your observed. Calculate an empirical p-value. 
+
+```{r}
+
+```
+
+
+
+

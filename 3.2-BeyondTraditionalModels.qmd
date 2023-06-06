@@ -1,0 +1,223 @@
+---
+title: "Beyond Traditional Models"
+author:
+  - Elizabeth King
+  - Kevin Middleton
+format:
+  revealjs:
+    theme: [default, custom.scss]
+    standalone: true
+    self-contained: true
+    logo: QMLS_Logo.png
+    slide-number: true
+    show-slide-number: all
+code-annotations: hover
+---
+
+## Randomization can apply to anything with a null hypothesis
+
+- Questions not typical to standard statistical tests
+- Beyond a single response variable
+
+```{r}
+#| label: setup
+#| echo: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(cowplot)
+library(readxl)
+library(viridis)
+
+ggplot2::theme_set(theme_cowplot(font_size = 18))
+set.seed(579000)
+```
+
+## Example: Spatial Distribution
+
+Are species distributions clumped across the landscape?
+
+Possible Null Hypotheses:
+
+- Randomly distributed
+- Uniformly distributed
+
+![](https://cdn.kastatic.org/ka-perseus-images/0ee2b2f9ef46f4adb40dcbcd43655122e8b8b200.png)
+
+
+## Sampling in quadrats^[Solow, AR & Smith W. 1991. Detecting Cluster in a Heterogeneous Community Sampled by Quadrats. Biometrics. 47:311-317.] {.smaller}
+
+- Are species clustered in quadrats?
+    - i.e., do we observe more occurrence than expected randomly in few quadrats?
+- Seabirds in the Anadyr Strait
+
+
+```{r}
+#| fig-height: 4
+#| fig-width: 6
+
+sm <- function(quads, nsps, pres){
+  ms <- 1:quads
+  out <- rep(NA, length(ms))
+  for(mm in ms){
+    ss <- 0
+    for(ii in 1:length(nsps)){
+      ss <- ss+ (1- choose((quads - pres[ii]), mm) / choose(quads, mm))
+    }
+    out[mm] <- ss
+  }
+  return(out)
+}
+
+quads <- 10
+pres <- c(5, 6, 6, 6)
+nsps <- c(7, 17, 12, 8)
+
+out <- sm(quads, nsps, pres)
+
+oo <- tibble("quadrat" = 1:10,
+             "Sp" = out)
+
+oo |>
+  ggplot(aes(quadrat, Sp)) +
+  geom_point() +
+  scale_x_continuous(breaks = 1:10) +
+  labs(x = "Quadrat Number", y = "Species")
+
+```
+
+
+## Species - quadrat curve
+
+$$s^*(m) = \displaystyle\sum^{K}_{i=1} \left[ 1 - \frac{\binom{M - L_i}{m}}{\binom{M}{m}}  \right] $$
+
+where:
+
+- $M$ is the number of quadrats
+- $m$ is the individual quadrat number
+- $L_i$ is the number of quadrats species *i* is found in
+- $K$ is the total number of species
+
+
+## Randomize 
+
+- Randomly assign observations to quatrats & recalculate the curve
+- Repeat many times and calculate a quantile curve
+
+## Randomize 
+
+```{r}
+birds <- tibble("quadrat" = c(rep(1, 2),
+                              rep(2, 2),
+                              rep(3, 1),
+                              rep(4, 4),
+                              rep(5, 4),
+                              rep(6, 1),
+                              rep(7, 9),
+                              rep(8, 5),
+                              rep(9, 5),
+                              rep(10, 11)),
+                "Species" = c("la", "pu",
+                              rep("la", 2),
+                              "pu",
+                              "mu", "ca", "ca", "pu",
+                              "mu", rep("ca", 3),
+                              "ca",
+                              rep("ca", 5), "la", rep("pu", 3),
+                              "mu", rep("la", 3), "pu",
+                              "mu", "ca", "la", "la", "pu",
+                              rep("mu", 3), rep("ca", 5), rep("la", 3)))
+
+nsps <- birds |> group_by(Species) |>
+  tally()
+
+pres <- birds |> group_by(Species) |>
+  summarise("pres" = length(unique(quadrat)))
+
+```
+
+```{r}
+#| echo: true
+
+niter <- 1000
+
+birds.s <- birds
+out.s <- matrix(data = NA, nrow = niter, ncol = quads)
+
+for(ii in 1:niter){
+  
+  birds.s$quadrat <- sample(1:quads, size = nrow(birds), replace = TRUE)
+  nsps <- birds.s |> 
+    count(Species)
+  pres <- birds.s |> 
+    group_by(Species) |>
+    summarise("pres" = length(unique(quadrat)))
+  out.s[ii,] <- sm(quads, nsps$n, pres$pres)
+  
+}
+```
+
+## Visualize the curves
+
+```{r}
+out.s <- t(out.s)
+out.s <- as.data.frame(out.s)
+out.s$quadrat <- 1:10
+out.tib <- pivot_longer(out.s, -quadrat,
+                        names_to = "Iter",
+                        values_to = "Sp")
+
+  ggplot() +
+  geom_line(data = out.tib, aes(quadrat, Sp, group = Iter), alpha = 1/16) +
+  geom_line(data = oo, aes(quadrat, Sp), color = "red") +
+  scale_x_continuous(breaks = 1:10) +
+  labs(x = "Quadrat Number", y = "Species")
+  
+```
+
+## Example: Comparing Fold Changes
+
+- Gene expression projects typically calculate $log_2$ fold changes to compare between groups
+- Ratios like this are problematic for analysis
+
+```{r}
+#| echo: true
+#| output-location: slide
+#| fig.width: 7
+
+set.seed(12439)
+
+rr <- tibble(pid = rep(letters[1:6],100),
+             cc = rnorm(100*6,10),
+             aa = rnorm(100*6,10),
+             bb = rnorm(100*6,10))
+rr <- rr |>
+  mutate(aa_cc = aa/cc, bb_cc = bb/cc)
+
+rr |> ggplot(aes(aa_cc, bb_cc)) +
+  geom_point() + 
+  geom_smooth(method = lm) +
+  facet_wrap(. ~ pid, ncol = 3)
+
+```
+
+## Gene expression in different diets
+
+- 6 samples in each of 3 diets
+- 3 tissues
+
+![](Images/FC_all.png)
+
+## What is the null expectation for fold changes?
+
+- 6 samples in each of 3 diets
+    - Easy to get a random draw that mimics the observed set up
+    - For each randomization, randomly choose 2 samples from each original diet to assign to each new diet (~800 possible combos)
+    - 100 randomizations (limited by computation time)
+
+
+## Randomizations
+
+![](Images/FC_sim_cor.png){width=60% fig-align="center"}
+

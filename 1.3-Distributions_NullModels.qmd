@@ -1,0 +1,348 @@
+---
+title: "Goals in Data Analysis"
+subtitle: "Sampling distributions, null hypotheses, etc."
+author:
+  - Elizabeth King
+  - Kevin Middleton
+format:
+  revealjs:
+    theme: [default, custom.scss]
+    standalone: true
+    self-contained: true
+    logo: QMLS_Logo.png
+    slide-number: true
+    show-slide-number: all
+code-annotations: hover
+---
+
+## What questions do we ask when we use statistics? {.smaller}
+
+```{r}
+#| label: setup
+#| echo: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(readxl)
+library(cowplot)
+library(viridis)
+
+theme_set(theme_cowplot(font_size = 18))
+```
+
+Estimation and hypotheses (QMLS 1, Unit 7)
+
+1. Parameter (point) estimation
+    - Given a model, with unknown parameters ($\theta_0$, $\theta_1$, ..., $\theta_k$), how to estimate values of those parameters?
+2. Interval estimation
+    - How to quantify the uncertainty associated with parameter estimates?
+3. Hypothesis testing
+    - How to test hypotheses about parameter estimates?
+
+
+## Mandible lengths of female and male jackals from the Natural History Museum (London).
+
+```{r}
+#| echo: false
+
+M <- read_excel("Data/Jackals.xlsx")
+M <- M |> mutate(Sex = factor(Sex))
+M |> ggplot(aes(Sex, Mandible, color = Sex)) +
+  geom_point(position = position_jitter(0.2), size = 3) +
+  scale_color_viridis_d()
+```
+
+
+## Parameter (point) estimation
+
+- Mean or median for the population of jackals
+- Mean or median for females and/or males
+- Difference between males and females
+
+
+## Interval estimation
+
+- Confidence interval surrounding means
+    - e.g., How uncertain is our estimate of male mean mandible size?
+- Confidence interval for the difference
+
+
+## Hypothesis testing
+
+- Are male and female average mandible lengths different?
+    - More different than by chance alone?
+
+
+## Hypothesis testing
+
+- Hypothesis testing requires comparing two or more hypotheses
+- Typically, comparison against some null hypothesis
+
+
+## Null hypothesis
+
+- The baseline expectation 
+- In statistics, often this is our expectation when only sampling and measurement error are causing variation
+- This is the default hypothesis: we require evidence against it to reject it in favor of an alternative
+- Hypotheses are never proven true
+    - Null is rejected or failed to be rejected
+
+
+## Null Distribution 
+
+- We can evaluate evidence in the context of the null hypothesis if we have a null distribution for some parameter of interest
+- How to get the null distribution
+    - Empirically
+    - Simulation
+    - From analytical solutions (mathematical formulas)
+
+
+## A Simple Case
+
+- Simulate two groups of alligators (reared at high and low temperature) that differ in their growth rate. 
+
+```{r}
+#| echo: true
+
+set.seed(736902)
+muH <- 1
+muL <- 1 / 3
+sd1 <- sd2 <- 1
+n1 <- n2 <- 20
+
+DD <- tibble(
+  growthR = c(rnorm(n1, muL, sd1),
+              rnorm(n2, muH, sd2)),
+  Temperature = c(rep("Low", times = n1),
+                  rep("High", times = n2))
+)
+```
+
+
+## A Simple Case
+
+- Simulate two groups of alligators (reared at high and low temperature) that differ in their growth rate. 
+
+```{r}
+#| echo: false
+
+DD |>
+  ggplot(aes(Temperature, growthR, color = Temperature)) +
+  geom_point(position = position_jitter(0.2), size = 3) +
+  ylab("log Growth rate (cm/yr)") +
+  scale_color_viridis_d() +
+  theme(legend.position = "none")
+```
+
+
+## Empirical Null Distribution
+
+```{r}
+#| echo: true
+#| warning: false
+#| output-location: slide
+
+d <- DD |> group_by(Temperature) |>                             # <1>
+  summarize(xbar = mean(growthR)) |>                            # <1>
+  pivot_wider(names_from = Temperature, values_from = xbar) |>  # <1>
+  mutate(d = High - Low) |>                                     # <1>
+  pull(d)                                                       # <1>
+
+nreps <- 1e4
+diffs.e <- numeric(length = nreps)
+diffs.e[1] <- d                                                 # <2>
+
+for (ii in 2:nreps) {
+  Rand_G <- sample(DD$Temperature)                              # <3>
+  diffs.e[ii] <- mean(DD$growthR[Rand_G == "High"]) -           # <4>
+    mean(DD$growthR[Rand_G == "Low"])                           # <4>
+}
+
+pe <- ggplot(data.frame(diffs.e), aes(diffs.e)) +
+  geom_histogram(binwidth = 0.1, fill = "gray75") +
+  geom_segment(x = d, xend = d,
+               y = 0, yend = Inf,
+               linewidth = 2,
+               color = "firebrick4") +
+  ylim(c(0, 1500)) +
+  xlim(c(-1.2, 1.2)) +
+  labs(x = "Difference (High - Low)", y = "Count")
+pe
+```
+
+1. Calculate the observed difference.
+2. Assign the observed difference to the 1st position of the `diffs.e` vector.
+3. Randomize the `Temperature` column
+4. Calculate the difference for the randomized data
+
+
+## Simulated Null Distribution
+
+```{r}
+#| echo: true
+#| warning: false
+#| output-location: slide
+
+mu_both <- mean(c(muL, muH))                        # <1>
+nreps <- 1e4
+diffs.s <- numeric(length = nreps)
+for (ii in 1:nreps) {
+  diffs.s[ii] <- mean(rnorm(n1, mu_both, sd1)) -
+    mean(rnorm(n2, mu_both, sd2))
+}
+
+ps <- ggplot(data.frame(diffs.s), aes(diffs.s)) +
+  geom_histogram(binwidth = 0.1, fill = "gray75") +
+  geom_segment(x = d, xend = d,
+               y = 0, yend = Inf,
+               linewidth = 2,
+               color = "firebrick4") +
+  ylim(c(0, 1500)) +
+  xlim(c(-1.2, 1.2)) +
+  labs(x = "Difference (High - Low)", y = "Count")
+ps
+```
+
+1. Mean for both groups
+
+
+## Two-sample *t*-test
+
+$$t = \frac{\bar{y}_1 - \bar{y}_2}{s_p \sqrt{\frac{1}{n_1} + \frac{1}{n_2}}}$$
+
+Pooled sample standard deviation:
+
+$$s_p = \sqrt{\frac{(n_1 - 1)s_1^2 + (n_2 - 1)s_2^2}{n_1 + n_2 - 2}}$$
+
+
+## Two-sample *t*-test
+
+$$s_p = \sqrt{\frac{(20 - 1) \cdot 1 + (20 - 1) \cdot 1}{20 + 20 - 2}} = \sqrt{\frac{19 + 19}{38}} = 1$$
+
+$$t = \frac{\bar{y}_1 - \bar{y}_2}{1 \cdot \sqrt{\frac{1}{20} + \frac{1}{20}}}$$
+
+$$t \cdot \sqrt{\frac{1}{20} + \frac{1}{20}} = \bar{y}_1 - \bar{y}_2$$
+
+
+## Analytical Solution for Null Distribution
+
+```{r}
+#| echo: true
+#| warning: false
+#| output-location: slide
+
+sp <- sqrt(((n1 - 1) * sd1^2 + (n2 - 1) * sd2^2) /    # <1>
+             (n1 + n2 - 2))                           # <1>
+
+scale_t <- sp * sqrt(1 / n1 + 1 / n2)                 # <2>
+diffs.a <- scale_t * rt(nreps, df = n1 + n2 - 2)      # <3>
+
+pa <- ggplot(data.frame(diffs.a), aes(diffs.a)) +
+  geom_histogram(binwidth = 0.1, fill = "gray75") +
+  geom_segment(x = d, xend = d,
+               y = 0, yend = Inf,
+               linewidth = 2,
+               color = "firebrick4") +
+  ylim(c(0, 1500)) +
+  xlim(c(-1.2, 1.2)) +
+  labs(x = "Difference (High - Low)", y = "Count")
+pa
+```
+
+1. Pooled sample standard deviation
+2. Scaling factor for *t* values based on `sp`
+3. Draw random numbers from a *t* distribution with *N* - 2 degrees of freedom and scale by `scale_t`.
+
+
+## Null Distributions
+
+```{r}
+#| echo: false
+
+plot_grid(pe + labs(title = "Empirical"),
+          ps + labs(title = "Simulated"),
+          pa + labs(title = "Analytical"),
+          ncol = 3, vjust = 1, rel_widths = c(1, 1, 1))
+```
+
+
+## What if our number of observations is 200?
+
+```{r}
+#| warning: false
+n1 <- 200
+n2 <- 200
+mu_both <- mean(c(muL, muH))
+nreps <- 1e4
+diffs.s <- numeric(length = nreps)
+for (ii in 1:nreps) {
+  diffs.s[ii] <- mean(rnorm(n1, mu_both, sd1)) -
+    mean(rnorm(n2, mu_both, sd2))
+}
+
+ps <- ggplot(data.frame(diffs.s), aes(diffs.s)) +
+  geom_histogram(binwidth = 0.1, fill = "gray75") +
+  ylim(c(0, 4000)) +
+  xlim(c(-1.2, 1.2)) +
+  labs(x = "Difference (High - Low)", y = "Count")
+
+sp <- sqrt(((n1 - 1) * sd1^2 + (n2 - 1) * sd2^2) / 
+             (n1 + n2 - 2))
+
+scale_t <- sp * sqrt(1 / n1 + 1 / n2)
+diffs.a <- scale_t * rt(nreps, df = n1 + n2 - 2)
+
+pa <- ggplot(data.frame(diffs.a), aes(diffs.a)) +
+  geom_histogram(binwidth = 0.1, fill = "gray75") +
+  ylim(c(0, 4000)) +
+  xlim(c(-1.2, 1.2)) +
+  labs(x = "Difference (High - Low)", y = "Count")
+
+plot_grid(ps + labs(title = "Simulated"),
+          pa + labs(title = "Analytical"), 
+          ncol=2, vjust = 1, rel_widths = c(1, 1))
+```
+
+
+## Null Distributions: Student's *t*
+
+```{r}
+#| echo: false
+x <- seq(-3, 3, by = 0.001)
+
+sim <- tibble(df = c(1, 2, 5, 10)) %>%
+  group_by(df) %>%
+  do(tibble(x = x, y = dt(x, .$df))) %>%
+  mutate(Parameters = paste0("df = ", df)) %>%
+  ungroup() %>%
+  mutate(Parameters = factor(Parameters, levels = unique(Parameters)))
+
+norm <- tibble(
+  x = x,
+  y = dnorm(x, 0, 1)
+)
+
+ggplot() +
+  geom_line(data = sim, aes(x, y, color = Parameters), linewidth = 1) +
+  geom_line(data = norm, aes(x, y), linewidth = 1, linetype = "dotted") +
+  scale_color_viridis_d(name = "Degrees of\nFreedom", option = "E") +
+  scale_x_continuous(breaks = seq(-2.5, 2.5, by = 0.5)) +
+  labs(x = "x", y = "Relative Probability") +
+  theme(legend.position = c(0.9, 0.75))
+```
+
+
+## Null Distributions
+
+- Many (but not all) Monte Carlo approaches will be different ways to get an empirical or simulated null distribution
+
+- Consider our jackals data set again
+
+```{r}
+#| fig-height: 4
+#| fig-width: 6
+M |> ggplot(aes(Sex, Mandible, color = Sex)) +
+  geom_point(position = position_jitter(0.2), size = 3) +
+  scale_color_viridis_d()
+```

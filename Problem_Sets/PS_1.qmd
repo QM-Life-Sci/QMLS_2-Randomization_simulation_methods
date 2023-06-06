@@ -1,0 +1,293 @@
+---
+title: "Problem Set 1"
+author:
+  - Your Name Here
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    toc-title: Contents
+code-annotations: hover
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: "hide"
+
+library(tidyverse)
+library(cowplot)
+
+theme_set(theme_cowplot())
+
+# Required files for this problem set:
+#   - small_data.csv
+```
+
+
+## Exploring sampling error
+
+Small data sets are often problematic for analysis. The smaller that a data set is, the larger the effect that sampling error can have. A consequence is that, because hypothesis tests based on linear models (*t* and *F* tests, for example) rely on the assumptions of the models, such models can be biased or simply incorrect when sample sizes are small. There is no universally agreed upon measure of "small" when describing a data set.
+
+The data in `small_data.csv` has 10 observations split evenly between two groups (`Group_1` and `Group_2`). These data were generated using `rnorm()` with the means and standard deviations for each group equal. In other words, both sets of data were drawn from the same distribution.
+
+Load the data and visualize it however you would like to.
+
+```{r}
+#| echo: true
+
+```
+
+We will ultimately be interested in testing whether means of the two groups differ significantly from one another. Based on the plot you made, what is your intuition?
+
+> 
+
+Calculate the group means and standard deviations as well as the difference in the means.
+
+```{r}
+#| echo: true
+
+```
+
+Do the group means and standard deviations provide any insight about whether the means are significantly different?
+
+> 
+
+Use `lm()` to fit a linear model predicting `y` by `Group`. Then use `summary()` to check whether the group means differ.
+
+```{r}
+#| echo: true
+
+```
+
+What do you find?
+
+> 
+
+The statistical test you just did is based on our expectations for random sampling of two groups producing a difference as big or bigger than that you observe in this set, assuming a normal distribution. Let's simulate a null distribution assuming the entire dataset is from a single distribution and the true distribution is normal. 
+
+Calculate the overall mean and standard deviation for the observed data (both groups together) and use those to generate 10,000 datasets in two groups of the same size as the small data. Then calculate the differences in the means for each iteration and plot them as a histogram. 
+
+```{r}
+#| echo: true
+
+```
+
+Based on your simulated null, what is the probability of getting a difference that is as big in magnitude as your observed difference? 
+
+> 
+
+One of the assumptions of a linear model like this (and in our simulated null) is that the residuals within each group are normally distributed. With only 5 points in each group that is pretty much impossible to determine. There are several different formal tests of normality (Shapiro-Wilk and Kolmogorov-Smirnov), but these tests are not that useful with so few observations. Both false negatives and false positives are common in these tests (particularly so for small *and* large samples). Similarly, you could look at a QQ plot of the residuals, but, again: only 10 points.
+
+It is important to remember that some parts of the linear model `summary()` are arithmetically determined by the observed data: the parameter estimates, their standard errors, the *t* and *F* statistics, and the R^2^ value. Only the *P*-values associated with the hypothesis tests of the parameter estimates vs. 0 (the `Pr(>|t|)` column) and of the overall *F* test (here `p-value: 0.07688`) rely on the asymptotic assumptions of the test. 
+
+Tests of significance based on randomization do not have the same assumptions, even though they might make use of the *t* or *F* statistics from a model summary as part of the analysis. Remember that these values are determined just from division of estimates by standard errors (for *t*) and of group mean squares by residual mean squares (for *F*).
+
+We will revisit to these data in Problem Set 2, where we will do the same analysis but use the *t* statistic to perform a randomization test.
+
+
+## Quantiles and `q` functions for distributions
+
+As discussed above, the *P*-values reported in `summary()` reflect the asymptotic nature of the *t* and *F* tests. Indeed, we can recover the *P*-values from the summary table using `pt()` and `pf()`:
+
+```{r}
+2 * pt(-2.03, df = 8, lower.tail = TRUE)
+pf(4.12, df1 = 1, df2 = 8, lower.tail = FALSE)
+```
+
+For the *t*-test, we have to double the resulting *P*-value to account for both tails (i.e., a two-sided test). These values are exact, except for rounding error. In this case, the *P*-values are equivalent for the two tests, because they are actually testing the same thing: the overall *F*-test is the same as the test for the difference in groups equaling 0.
+
+In this question we want to explore what it means when we say "asymptotic" and what happens when the assumptions aren't met.
+
+In the chunk below, set the random number seed and then generate 100,000 (`1e5`) random samples from a standard normal distribution^[100,000 points will be enough to represent the full reasonable range of the distribution. This demonstration will work with any normal distribution, but choosing the standard normal allows us to not have to specify the mean and standard deviation each time we use a `norm` function.]. Next, sort the values (or do this in one step). You should end up with a vector of 100,000 values sorted from low to high.
+
+```{r}
+#| echo: true
+
+```
+
+Print the `head()` and `tail()` of the vector:
+
+```{r}
+#| echo: true
+
+```
+
+What are the maximum and minimum values? How likely would these values be if we had a smaller sample?
+
+> 
+
+Now print then 2,500th and 97,500th values of the vector as well as the 0.025 and 0.975 quantiles.
+
+```{r}
+#| echo: true
+
+```
+
+Do the values agree? Do they agree exactly? Look at the help for `quantile()` and see if you can find an option to make them agree exactly. R has 9 different types of quantiles.
+
+> 
+Now compare the values for the quantiles above to the theoretical quantiles for a standard normal distribution using `qnorm()`.
+
+```{r}
+#| echo: true
+
+```
+
+How well do they agree?
+
+> 
+
+Now think about what would happen if the data had actually been drawn from a *t* distribution (with 8 degrees of freedom) rather than from a standard normal.
+
+How do you think the 95% quantile interval would compare?
+
+> 
+
+Test your prediction below, following the same steps as above, but generating the data with `rt()` rather then `rnorm()`. You can just copy the code into a single chunk.
+
+```{r}
+#| echo: true
+
+```
+
+How do the intervals compare?
+
+> 
+
+
+## Brownian motion and why biological traits are very often normally distributed
+
+Normal or Gaussian distributions (and their relatives like log-normal and gamma distributions) are extremely common distributions in biology, particularly so for phenotypic trait values. Here we want to explore how a simple process can lead to a normal distribution.
+
+The small function below generates a sequence of +1 or -1 for some number of steps (`nsteps`) and then adds the resulting values cumulatively. Think of this process as, at each step, adding or subtracting 1. Because this process doesn't know about its past and only works 1 step at a time, it's called a Markov process and when those steps happen in sequence, a Markov chain (the first "MC" in MCMC).
+
+Feel free to step through the code and see what the values for `s` and `y` are.
+
+```{r}
+markov_sim <- function(sim_num, nsteps) {
+  s <- replicate(nsteps, sample(c(-1, 1), 1))        # <1>
+  y <- cumsum(s)                                     # <2>
+  return(tibble(sim_num, step = seq_len(nsteps), y)) # <3>
+}
+```
+
+1. Generate a sequence of `nsteps` of -1 or 1 by sampling. There are many ways to do this step.
+2. Add up the values of `s` cumulatively
+3. Return the simulation number (so we can keep track), the step number, and the value for `y`
+
+In the chunk below, we generate 1000 "lineages" using the function above where each lineage "evolves" for 10 generations. There are several ways to do this process. One is to use `purrr::map()`, passing the sequence `1:niter` as `.x` and 10 for `nsteps`. `purrr::map()` returns a list, but you can "stack" them together with `list_rbind()`. Using `map()` rather than a loop will make it easier to parallelize this code in the future using `furrr::future_map()`. We will get to that.
+
+```{r}
+#| echo: true
+
+set.seed(3473897)
+
+niter <- 1000
+nsteps <- 10
+sims <- map(.x = seq_len(niter), # <1>
+            .f = markov_sim,     # <2>
+            nsteps = nsteps) |>  # <3>
+  list_rbind()                   # <4>
+```
+
+1. `.x` is passed as the first argument to the function, which is why we need to set `sim_num` as the first argument. `seq_len(niter)` is a shortcut for `1:niter`.
+2. `.f` is the function to call. Note no `()` here.
+3. `nsteps` is also required by the function, so we pass it as well.
+4. The `markov_sim()` function returns a list of 1-row tibbles. `list_rbind()` stacks them in sequence, like `bind_rows()` or `rbind()`.
+
+You will have a tibble with 3 columns and 10,000 rows. 
+
+```{r}
+head(sims)
+```
+
+We can visualize the paths for each of our simulated lineages and highlight a single lineage. There are a lot of overlapping lines, so it mostly just looks line an argyle pattern.
+
+```{r}
+#| echo: true
+#| warning: false
+
+ggplot() +
+  geom_path(data = sims, aes(x = y, y = step, group = sim_num),
+            alpha = 0.25,
+            linewidth = 0.5) +
+  geom_path(data = sims |> filter(sim_num == 1), aes(x = y, y = step),
+            color = "red",
+            linewidth = 2.5)
+
+ggplot() +
+  geom_path(data = sims, aes(x = y, y = step, group = sim_num),
+            alpha = 0.25,
+            linewidth = 0.5) +
+  geom_path(data = sims |> filter(sim_num == 2), aes(x = y, y = step),
+            color = "red",
+            linewidth = 2.5)
+```
+
+Finally, we plot the lineages and the resulting distribution:
+
+```{r}
+#| echo: true
+#| warning: false
+
+p1 <- ggplot() +
+  geom_path(data = sims, aes(x = y, y = step, group = sim_num),
+            alpha = 0.5,
+            linewidth = 1.5) +
+  geom_point(data = sims, aes(x = y, y = step), alpha = 0) +
+  scale_x_continuous(limits = c(-12, 12))
+p2 <- ggplot(data = sims, aes(y)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(limits = c(-12, 12))
+cowplot::plot_grid(p2, p1, nrow = 2, align = "hv")
+```
+
+You can see that even a relatively simple process of adding or subtracting 1 can, over a relatively short sequence, produce a viable normal distribution. Try changing the values of `niter` and `nsteps` and rerunning the simulation.
+
+In the chunk below, rewrite the `markov_sim()` function to instead use values drawn from a standard normal distribution. This is more typically called Brownian motion, where at each step, a small amount is added (or subtracted).
+
+```{r}
+#| echo: true
+#| warning: false
+
+
+```
+
+How do the results compare to the simpler $\pm$ 1 simulation?
+
+> 
+
+
+## Central Limit Theorem
+
+One of the reasons so much of our data analysis methods assume a normal distribution is because of what happens when we repeatedly sample and summarize from a set of observations. Typically when we take a sample from some distribution and compute a summary of some kind, the resulting distribution of values will be normally distributed, no matter what the original distribution is like. This fact is part of why so many analysis work so well across many different datasets. Let's use a highly skewed real dataset to see how this works for a simple case, the mean. 
+
+In the Data4Ecologists package (install with `remotes::install_github("jfieberg/Data4Ecologists")`), there is a dataset of wolf pack sizes. Load the library and use glimpse to look at the `WolfPackSize` dataset. We'll focus on the `size` column, which is just the number of wolves in each pack that was observed in this study.
+
+Make a histogram, choosing an appropriate number of bins of wolf pack sizes and note your observations about its distribution. 
+
+```{r}
+#| echo: true
+
+```
+
+> 
+
+Take 1000 samples from this distribution, sampling 20 packs each time and calculate the mean pack size. Keep these means in a tibble. Create a histogram of your computed means.
+
+```{r}
+#| echo: true
+
+```
+
+
+Now do the same sampling this time calculating the proportion of packs that are smaller than or equal to 5 members. 
+
+
+```{r}
+#| echo: true
+
+```

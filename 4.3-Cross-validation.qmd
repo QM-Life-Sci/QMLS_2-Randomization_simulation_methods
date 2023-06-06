@@ -1,0 +1,480 @@
+---
+title: "Cross-validation"
+author:
+  - Elizabeth King
+  - Kevin Middleton
+format:
+  revealjs:
+    theme: [default, custom.scss]
+    standalone: true
+    self-contained: true
+    logo: QMLS_Logo.png
+    slide-number: true
+    show-slide-number: all
+code-annotations: hover
+---
+
+## Models learn from data
+
+*Overfitting*:
+
+- Model learns too much.
+- Can't predict well.
+
+*Underfitting*:
+
+- Model doesn't learn enough.
+- Can't predict well.
+
+```{r}
+#| label: setup
+#| echo: false
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(cowplot)
+library(readxl)
+library(MASS)
+library(furrr)
+
+ggplot2::theme_set(theme_cowplot(font_size = 18))
+```
+
+
+## Resampling methods^[Also see bootstrap]
+
+Model assessment
+
+- How good is a model at predicting out-of-sample data?
+
+Model selection
+
+- What model has the optimal "flexibility"?
+
+
+## Machine learning lingo
+
+- Error rates: Training, testing (validation)
+- Bias: Underfitting
+- Variance: Overfitting
+- Loss or Cost function: Measure of the prediction error
+
+
+## Challenges of low power designs (e.g. "small" data sets)
+
+- Big data sets can be split easily, 
+    - Plenty to training
+    - Plenty for (validation and) testing
+- More error when data is trained on small data sets (underfitting)
+
+
+## Dividing data
+
+![](https://algotrading101.com/learn/wp-content/uploads/2020/06/training-validation-test-data-set.png){width=75%}
+
+
+## Cross-validation
+
+- *k*-fold (*v*-fold)
+- Leave-one-out (LOOCV)
+
+
+## General CV approach
+
+- Split data into training and test sets
+- Use training set to build model
+- Use test set to evaluate model (predict new values)
+    - Calculate prediction error
+- Repeat for *k* folds to get average error
+
+
+## Choice of error term
+
+- (Root) Mean Squared Error (RMSE / MSE)
+    - Can be dominated by extreme values (e.g., outliers)
+- Mean Absolute Error (MAE)
+    - Related to the median
+- Correlation 
+    - Observations & Predicted values
+    - Less common
+
+
+## Laborious example of 5-fold CV
+
+```{r}
+#| echo: true
+#| output-location: slide
+
+set.seed(3462834)
+DD <- tibble(x = runif(10, 0, 20),
+             y = x * 2 + rnorm(10, 5, 10))
+
+ggplot(DD, aes(x, y)) +
+  geom_smooth(formula = y ~ x, method = "lm", se = FALSE,
+              color = "lightgoldenrod3",
+              linewidth = 2) +
+  geom_point(size = 5, color = "mediumorchid4") +
+  scale_y_continuous(limits = c(8, 50))
+```
+
+
+## Assign folds
+
+```{r}
+#| echo: true
+
+DD <- DD |> 
+  mutate(k = sample(rep(1:5, each = 2))) |> 
+  arrange(k)
+DD
+```
+
+
+## Assign folds
+
+```{r}
+ggplot(DD, aes(x, y, color = factor(k))) +
+  geom_smooth(formula = y ~ x, method = "lm", se = FALSE, color = "lightgoldenrod3",
+              linewidth = 2) +
+  geom_point(size = 5) +
+  scale_color_viridis_d(guide = NULL) +
+  scale_y_continuous(limits = c(8, 50))
+```
+
+
+## Fold 1
+
+```{r}
+#| echo: true
+
+DD1 <- DD |> filter(k != 1)
+lm1 <- lm(y ~ x, data = DD1)
+
+(Pred1 <- DD |> filter(k == 1) |> 
+    mutate(y_hat = predict(lm1, newdata = DD |> filter(k == 1))))
+```
+
+
+## Fold 1
+
+```{r}
+ggplot() +
+  geom_smooth(data = DD, aes(x, y),
+              formula = y ~ x, method = "lm", se = FALSE, color = "lightgoldenrod3",
+              linewidth = 1) +
+  geom_abline(intercept = coef(lm1)[1], slope = coef(lm1)[2], linewidth = 2) +
+  geom_point(data = DD1, aes(x, y), size = 5) +
+  scale_y_continuous(limits = c(8, 50))
+```
+
+
+## Fold 1
+
+```{r}
+ggplot() +
+  geom_abline(intercept = coef(lm1)[1], slope = coef(lm1)[2], linewidth = 2) +
+  geom_point(data = DD1, aes(x, y), size = 5) +
+  geom_point(data = DD |> filter(k == 1), aes(x, y), size = 5, color = "hotpink3") +
+  scale_y_continuous(limits = c(8, 50))
+```
+
+
+## Fold 1
+
+```{r}
+ggplot() +
+  geom_abline(intercept = coef(lm1)[1], slope = coef(lm1)[2], linewidth = 2) +
+  geom_point(data = DD1, aes(x, y), size = 5) +
+  geom_point(data = DD |> filter(k == 1), aes(x, y), size = 5, color = "hotpink3") +
+  geom_point(data = Pred1, aes(x, y_hat), size = 5, color = "hotpink") +
+  scale_y_continuous(limits = c(8, 50))
+```
+
+
+## Fold 1
+
+```{r}
+ggplot() +
+  geom_abline(intercept = coef(lm1)[1], slope = coef(lm1)[2], linewidth = 2) +
+  geom_point(data = DD1, aes(x, y), size = 5) +
+  geom_point(data = DD |> filter(k == 1), aes(x, y), size = 5, color = "hotpink3") +
+  geom_point(data = Pred1, aes(x, y_hat), size = 5, color = "hotpink") +
+  geom_segment(data = Pred1, aes(x = x, xend = x, y = y, yend = y_hat),
+               linewidth = 0.75, linetype = "dotted") +
+  scale_y_continuous(limits = c(8, 50))
+```
+
+
+## Fold 1
+
+```{r}
+#| echo: true
+
+Pred1 <- Pred1 |> 
+  mutate(Error = y - y_hat,
+         Squared_error = Error ^ 2,
+         Absolute_error = abs(Error))
+Pred1
+```
+
+
+## Function to do all folds
+
+```{r}
+#| echo: true
+
+CV_fun <- function(k_fold, DD) {
+  DDk <- DD |> filter(k != k_fold)
+  lmk <- lm(y ~ x, data = DDk)
+  
+  DD |> filter(k == k_fold) |> 
+    mutate(y_hat = predict(lmk, newdata = DD |> filter(k == k_fold)),
+           Error = y - y_hat,
+           Squared_error = Error ^ 2,
+           Absolute_error = abs(Error))
+}
+
+CV_fun(1, DD)
+Pred1
+```
+
+
+## 5-fold CV
+
+```{r}
+#| echo: true
+
+CV5 <- future_map(.x = 1:5,
+                  .f = CV_fun,
+                  DD = DD) |> 
+  list_rbind()
+CV5
+```
+
+
+## 5-fold CV
+
+```{r}
+#| echo: true
+
+mean(CV5$Squared_error)
+sqrt(mean(CV5$Squared_error))
+mean(CV5$Absolute_error)
+```
+
+
+## Comparing models
+
+```{r}
+ggplot(DD, aes(x, y, color = factor(k))) +
+  geom_smooth(formula = y ~ x, method = "lm", se = FALSE, color = "lightgoldenrod3",
+              linewidth = 2) +
+  geom_smooth(formula = y ~ 1, method = "lm", se = FALSE, color = "lightcyan3",
+              linewidth = 2) +
+  geom_point(size = 5) +
+  scale_color_viridis_d(guide = NULL) +
+  scale_y_continuous(limits = c(8, 50))
+```
+
+
+## Comparing models
+
+```{r}
+CV_fun_0 <- function(k_fold, DD) {
+  DDk <- DD |> filter(k != k_fold)
+  lmk <- lm(y ~ 1, data = DDk)
+  
+  DD |> filter(k == k_fold) |> 
+    mutate(y_hat = predict(lmk, newdata = DD |> filter(k == k_fold)),
+           Error = y - y_hat,
+           Squared_error = Error ^ 2,
+           Absolute_error = abs(Error))
+}
+```
+
+```{r}
+#| echo: true
+
+CV5_0 <- future_map(.x = 1:5,
+                    .f = CV_fun_0,
+                    DD = DD) |> 
+  list_rbind()
+CV5_0
+```
+
+
+## Comparing models
+
+```{r}
+t1 <- tribble(
+  ~ Parameter, ~ `OLS model`, ~ `Intercept Only`,
+  "MSE", mean(CV5$Squared_error), mean(CV5_0$Squared_error),
+  "RMSE", sqrt(mean(CV5$Squared_error)), sqrt(mean(CV5_0$Squared_error)),
+  "MAE", mean(CV5$Absolute_error), mean(CV5_0$Absolute_error)) |> 
+  kableExtra::kable(digits = 2)
+t1
+```
+
+RMSE and MAE are interpreted on the "natural scale" of the data
+
+
+## Leave-one-out cross-validation (LOOCV)
+
+- Fitting to the most points minus 1
+- Should have less underfitting
+    - Uses maximal number of observations while leaving one out
+
+
+## LOOCV on our sample data
+
+```{r}
+#| echo: true
+
+LOOCV_fun <- function(ii, DD) {
+  DDk <- DD |> slice(-ii)
+  lmk <- lm(y ~ x, data = DDk)
+  
+  DD |> slice(ii) |> 
+    mutate(y_hat = predict(lmk, newdata = DD |> slice(ii)),
+           Error = y - y_hat,
+           Squared_error = Error ^ 2,
+           Absolute_error = abs(Error))
+}
+```
+
+
+## LOOCV on our sample data
+
+```{r}
+#| echo: true
+
+LOOCV <- future_map(.x = seq_len(nrow(DD)),
+                  .f = LOOCV_fun,
+                  DD = DD) |> 
+  list_rbind()
+LOOCV
+```
+
+
+## Model comparison with LOOCV
+
+```{r}
+LOOCV_fun_0 <- function(ii, DD) {
+  DDk <- DD |> slice(-ii)
+  lmk <- lm(y ~ 1, data = DDk)
+  
+  DD |> slice(ii) |> 
+    mutate(y_hat = predict(lmk, newdata = DD |> slice(ii)),
+           Error = y - y_hat,
+           Squared_error = Error ^ 2,
+           Absolute_error = abs(Error))
+}
+
+LOOCV_0 <- future_map(.x = seq_len(nrow(DD)),
+                      .f = LOOCV_fun_0,
+                      DD = DD) |> 
+  list_rbind()
+
+t2 <- tribble(
+  ~ Parameter, ~ `OLS model`, ~ `Intercept Only`,
+  "MSE", mean(LOOCV$Squared_error), mean(LOOCV_0$Squared_error),
+  "RMSE", sqrt(mean(LOOCV$Squared_error)), sqrt(mean(LOOCV_0$Squared_error)),
+  "MAE", mean(LOOCV$Absolute_error), mean(LOOCV_0$Absolute_error)) |> 
+  kableExtra::kable(digits = 2)
+t2
+```
+
+---
+
+**5-fold**
+
+```{r}
+t1
+```
+
+**LOOCV**
+
+```{r}
+t2
+```
+
+
+## *k*-Fold or LOOCV?
+
+
+## LOOCV shortcut
+
+Leverage:
+
+$$h_i = \frac{1}{n} + \frac{(x_i - \bar{x})^2}{\sum^{n}_{i'=1}(x_{i'} - \bar{x})}$$
+
+$$CV_{(n)} = \frac{1}{n} \sum^{n}_{i=1} \left( \frac{y_i - \hat{y_i}}{1 - h_i} \right) ^2$$
+
+
+## CV Logistic regression
+
+0-1 error term
+
+- Correct or incorrect classification
+- Percent correct
+- Confusion matrix
+
+
+## Presence of sole
+
+<center>
+<img src="https://i.imgur.com/tippc8A.jpg" width="100%" />
+</center>
+
+
+## Presence of sole
+
+Presence/absence of sole in the Tagus estuary of Portugal.
+
+```{r}
+MM <- read_excel("Data/Sole.xlsx")
+MM$Solea_solea <- factor(MM$Solea_solea)
+
+str(MM)
+```
+
+
+## Presence of sole
+
+```{r echo=FALSE}
+
+ggplot(MM, aes(x = salinity,
+              y = as.numeric(Solea_solea) - 1)) +
+  geom_hline(yintercept = 0.5, linetype = "dotted", size = 0.5) +
+  geom_smooth(formula = y ~ x,
+              method = "glm",
+              method.args = list(family = "binomial"),
+              se = FALSE, size = 2) +
+  geom_point(size = 3) +
+  ylab("Probability of Presence") +
+  xlab("Salinity") +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.1))
+
+```
+
+
+## DFA & Cross Validation
+
+```{r}
+#| echo: true
+
+fm <- lda(Solea_solea ~ salinity, data = MM, CV = TRUE)
+
+table(list(predicted=fm$class, observed=MM$Solea_solea))
+
+```
+
+
+## More Resources
+
+[James, G., D. Witten, T. Hastie, and R. Tibshirani. 2013. *An Introduction to Statistical Learning*](https://www.statlearning.com/)
+
+![](https://images.squarespace-cdn.com/content/v1/5ff2adbe3fe4fe33db902812/1611294680091-25SIDM9AHA8ECIFFST23/Screen+Shot+2021-01-21+at+11.02.06+AM.png){width=35% fig-align="center"}
+
+
