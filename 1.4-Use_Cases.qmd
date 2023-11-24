@@ -118,13 +118,3 @@ ggplot2::theme_set(theme_cowplot())
 3. Hypothesis testing
     - How to test hypotheses about parameter estimates?
 
-
-
-
-
-
-
-
-
-
-
