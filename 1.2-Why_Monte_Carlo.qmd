@@ -31,14 +31,12 @@ set.seed(478239)
 
 A general term that includes any methods that involve random sampling of any kind 
 
-<center>
-<img src="https://lp-cms-production.imgix.net/2019-06/d6dbfeb4a839afa6e09adbe525674de3-casino-de-monte-carlo.jpg" width="65%" />
-</center>
+![](https://lp-cms-production.imgix.net/2019-06/d6dbfeb4a839afa6e09adbe525674de3-casino-de-monte-carlo.jpg){fig-align="center" width=65%}
 
 
 ## Random Sampling
 
-- Values from a distribution (e.g. a normal distribution)
+- Values from a distribution (e.g., a normal distribution)
 - Values from a dataset
 - Values from a set of possible parameters
 - A random order for a set of values
@@ -67,9 +65,7 @@ ggplot(rand_vals, aes(Random)) +
 
 - From QMLS 1 & [Randomization, Bootstrap and Monte Carlo Methods in Biology](https://www.amazon.com/Randomization-Bootstrap-Methods-Biology-Statistical-dp-0367349949/dp/0367349949/)
 
-<center>
-<img src="https://i.imgur.com/OOYvufC.jpg" width="35%" />
-</center>
+![](https://i.imgur.com/OOYvufC.jpg){fig-align="center" width=35%}
 
 
 ## Are male and female jackal mandible lengths different?
