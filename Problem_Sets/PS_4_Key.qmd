@@ -189,7 +189,7 @@ rand_expr <- function(ii, SS, ths) {
 
 ```
 
-Now use `future_map()` to do 1,000 permutations, keeping the number of false positives for your range of thresholds. You should do fewer permuations until you are sure everything is working ok. It will take a few minutes to run 1,000, even in parallel. You will end up with a list with each element containing the set of false positives for your thresholds for one permutation.
+Now use `future_map()` to do 1,000 permutations, keeping the number of false positives for your range of thresholds. You should do fewer permutations until you are sure everything is working OK. It will take a few minutes to run 1,000, even in parallel. You will end up with a list with each element containing the set of false positives for your thresholds for one permutation.
 
 ```{r}
 #| echo: false
@@ -211,7 +211,7 @@ fps_expr <- future_map(.x = seq_len(niter),
 plan(sequential)
 ```
 
-Use `as.data.frame()` to turn the list output into a data.frame with the permutations in columns and thresholds in rows. The column names will be crazy but that is ok. You can rename them with `colnames()` if you want. Get the average number of false positives at each threshold. Then calculate the number of positives in your observed data at each threshold. Finally calculate the FDR at each threshold and plot FDR vs threshold.
+Use `as.data.frame()` to turn the list output into a data.frame with the permutations in columns and thresholds in rows. The column names will be crazy but that is OK. You can rename them with `colnames()` if you want. Get the average number of false positives at each threshold. Then calculate the number of positives in your observed data at each threshold. Finally calculate the FDR at each threshold and plot FDR vs threshold.
 
 ```{r}
 #| echo: false
