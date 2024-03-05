@@ -166,7 +166,7 @@ Consider how the "null hypothesis" is being used statistically here. How well do
 
 ## Restoration Treatments in Prairies in a Block Design
 
-Block designs are used often to help isolate the effects of treatments. Consider a block design where there are three plots within each block in space in a prairie restoration. These three plots are a control (unmanipulated), burned annually in fall, and mowed every spring. Within these blocks, there are several quatrats where species richness was measured. Load in the prairie.csv file and examine the structure of the data, plotting, etc.
+Block designs are used often to help isolate the effects of treatments. Consider a block design where there are three plots within each block in space in a prairie restoration. These three plots are a control (unmanipulated), burned annually in fall, and mowed every spring. Within these blocks, there are several quadrants where species richness was measured. Load in the prairie.csv file and examine the structure of the data, plotting, etc.
 
 ```{r}
 
