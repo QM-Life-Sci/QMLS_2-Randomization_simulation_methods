@@ -95,6 +95,7 @@ What *P*-value threshold would you recommend for this study?
 
 > 
 
+
 ## Sampling strategies
 
 Imagine you are planning an experiment looking at the response of a plant population to herbivory by aphids. You plan to measure salicylic acid (SA) in plants in two treatments, either with or without aphids. There is known technical variation in the assay for salicylic acid so you want to plan how many technical replicates (sampling from a plant and assaying aliquots from the same sample multiple times) versus biological samples (assaying additional plants) you should do. 

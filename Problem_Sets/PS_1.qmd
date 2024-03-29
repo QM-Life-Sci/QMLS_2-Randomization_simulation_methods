@@ -129,6 +129,7 @@ Now print then 2,500th and 97,500th values of the vector as well as the 0.025 an
 Do the values agree? Do they agree exactly? Look at the help for `quantile()` and see if you can find an option to make them agree exactly. R has 9 different types of quantiles.
 
 > 
+
 Now compare the values for the quantiles above to the theoretical quantiles for a standard normal distribution using `qnorm()`.
 
 ```{r}
